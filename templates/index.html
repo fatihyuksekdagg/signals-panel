@@ -1,54 +1,76 @@
 {% extends "layout.html" %}
 {% block content %}
-<h2>Güncel Sinyaller</h2>
-<div class="grid">
-  <table>
-    <thead>
-      <tr>
-        <th>Zaman (UTC)</th><th>Sembol</th><th>Yön</th>
-        <th>Giriş</th><th>Stop</th><th>TP</th><th>Güven</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for s in signals %}
-      <tr>
-        <td>{{ s.timestamp }}</td>
-        <td>{{ s.symbol }}</td>
-        <td class="side {{ s.side }}">{{ s.side }}</td>
-        <td>{{ s.entry }}</td>
-        <td>{{ s.stop }}</td>
-        <td>{{ s.tp }}</td>
-        <td>{{ (s.confidence*100)|round(0) if s.confidence <=1 else (s.confidence)|round(0) }}%</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  <div>
+
+<section class="hero">
+  <div class="hero-left">
+    <h1>Akıllı Sinyaller, Temiz Arayüz</h1>
+    <p>Gerçek zamanlı analiz ve basit performans özeti. Hızlı, net ve kullanıcı dostu.</p>
+    <div class="kpis">
+      <div class="kpi"><span id="kpiSignals">—</span><label>Güncel Sinyal</label></div>
+      <div class="kpi"><span id="kpiHit">—</span><label>Tahmini İsabet*</label></div>
+      <div class="kpi"><span id="kpiWin">—</span><label>Son 24s PnL*</label></div>
+    </div>
+    <small class="muted">*Simülasyon amaçlı görseller</small>
+  </div>
+  <div class="hero-right card">
     <canvas id="pnl"></canvas>
   </div>
-</div>
+</section>
 
-<script>
-async function load() {
-  const r = await fetch("/api/signals");
-  const data = await r.json();
-  let equity = 0;
-  const labels = [];
-  const series = [];
-  data.forEach((s)=>{
-    labels.append ? null : null;
-    labels.push(new Date(s.timestamp).toLocaleString());
-    const step = s.side === "flat" ? 0 : (Math.random() - 0.45);
-    equity += step;
-    series.push(equity);
-  });
-  const ctx = document.getElementById('pnl');
-  new Chart(ctx, {
-    type: 'line',
-    data: { labels, datasets: [{ label: 'PnL (simülasyon)', data: series }] },
-    options: { responsive: true, scales: { x: { display: false } } }
-  });
-}
-load();
-</script>
+<section class="controls card">
+  <div class="control-row">
+    <input id="search" class="input" type="text" placeholder="Sembol ara (BTC, ETH, EURUSD...)">
+    <select id="symbolFilter" class="input">
+      <option value="">Tümü</option>
+      <option>BTCUSDT</option>
+      <option>ETHUSDT</option>
+      <option>XAUUSD</option>
+      <option>EURUSD</option>
+      <option>BIST:THYAO</option>
+    </select>
+    <div class="segmented">
+      <button class="seg active" data-side="">Hepsi</button>
+      <button class="seg" data-side="long">Long</button>
+      <button class="seg" data-side="short">Short</button>
+      <button class="seg" data-side="flat">Flat</button>
+    </div>
+    <button id="refresh" class="btn">Yenile ↻</button>
+  </div>
+</section>
+
+<section class="card table-card">
+  <div class="table-head">
+    <h2>Güncel Sinyaller</h2>
+    <span id="lastUpdated" class="muted"></span>
+  </div>
+  <div class="table-wrap">
+    <table id="signalsTable">
+      <thead>
+        <tr>
+          <th>Zaman (UTC)</th>
+          <th>Sembol</th>
+          <th>Yön</th>
+          <th>Giriş</th>
+          <th>Stop</th>
+          <th>TP</th>
+          <th>Güven</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        {% for s in signals %}
+        <tr data-symbol="{{ s.symbol }}" data-side="{{ s.side }}">
+          <td>{{ s.timestamp }}</td>
+          <td class="mono">{{ s.symbol }}</td>
+          <td><span class="pill {{ s.side }}">{{ s.side }}</span></td>
+          <td class="num">{{ s.entry }}</td>
+          <td class="num">{{ s.stop }}</td>
+          <td class="num">{{ s.tp }}</td>
+          <td class="num">{{ (s.confidence*100)|round(0) if s.confidence <=1 else (s.confidence)|round(0) }}%</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
 {% endblock %}
