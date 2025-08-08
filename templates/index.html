@@ -1,0 +1,54 @@
+{% extends "layout.html" %}
+{% block content %}
+<h2>Güncel Sinyaller</h2>
+<div class="grid">
+  <table>
+    <thead>
+      <tr>
+        <th>Zaman (UTC)</th><th>Sembol</th><th>Yön</th>
+        <th>Giriş</th><th>Stop</th><th>TP</th><th>Güven</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in signals %}
+      <tr>
+        <td>{{ s.timestamp }}</td>
+        <td>{{ s.symbol }}</td>
+        <td class="side {{ s.side }}">{{ s.side }}</td>
+        <td>{{ s.entry }}</td>
+        <td>{{ s.stop }}</td>
+        <td>{{ s.tp }}</td>
+        <td>{{ (s.confidence*100)|round(0) if s.confidence <=1 else (s.confidence)|round(0) }}%</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div>
+    <canvas id="pnl"></canvas>
+  </div>
+</div>
+
+<script>
+async function load() {
+  const r = await fetch("/api/signals");
+  const data = await r.json();
+  let equity = 0;
+  const labels = [];
+  const series = [];
+  data.forEach((s)=>{
+    labels.append ? null : null;
+    labels.push(new Date(s.timestamp).toLocaleString());
+    const step = s.side === "flat" ? 0 : (Math.random() - 0.45);
+    equity += step;
+    series.push(equity);
+  });
+  const ctx = document.getElementById('pnl');
+  new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [{ label: 'PnL (simülasyon)', data: series }] },
+    options: { responsive: true, scales: { x: { display: false } } }
+  });
+}
+load();
+</script>
+{% endblock %}

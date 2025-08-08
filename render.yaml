@@ -1,0 +1,7 @@
+services:
+- type: web
+  name: signals-panel
+  env: python
+  plan: free
+  buildCommand: "pip install -r requirements.txt"
+  startCommand: "gunicorn app:app -b 0.0.0.0:8000"
