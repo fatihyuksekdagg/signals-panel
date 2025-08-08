@@ -12,17 +12,89 @@
     if (saved) html.setAttribute('data-theme', saved);
   }
 
-  // Veri çek, chart kur, KPI doldur
+  // Yardımcılar
+  function calcMaxDrawdown(equity){
+    let peak = equity[0] || 0, maxDD = 0;
+    for (let v of equity){
+      if (v > peak) peak = v;
+      const dd = (peak - v);
+      if (dd > maxDD) maxDD = dd;
+    }
+    return maxDD;
+  }
+  function pct(a,b){ return b === 0 ? 0 : ((a-b)/b)*100; }
+
+  // Simülasyon
+  function runSimulationFromSignals(signals, opts){
+    const {
+      capital0 = 10000,
+      feePct = 0.05,     // %
+      tpPct = 1.5,       // %
+      slPct = 1.0,       // %
+      useSignalLevels = true,
+      useConfidence = true,
+    } = opts || {};
+
+    let capital = capital0;
+    let equity = [capital];
+    let wins = 0, trades = 0;
+    const riskFrac = 0.2; // her işleme sermayenin %20'si
+
+    for (const s of signals){
+      if (!s || s.side === 'flat') continue;
+      const entry = s.entry;
+      const useLevels = useSignalLevels && entry && s.tp && s.stop;
+
+      const tpGainPct = useLevels ? ((s.tp - entry) / entry * 100) : tpPct;
+      const slLossPct = useLevels ? ((entry - s.stop) / entry * 100) : slPct;
+
+      let win;
+      if (useConfidence && typeof s.confidence === 'number'){
+        const p = s.confidence <= 1 ? s.confidence : s.confidence/100;
+        win = Math.random() < p;
+      } else {
+        win = Math.random() < 0.55;
+      }
+
+      const position = capital * riskFrac;
+      const fee = position * (feePct/100);
+
+      let pnl;
+      if (win){
+        pnl = position * (tpGainPct/100) - fee;
+        wins += 1;
+      } else {
+        pnl = - position * (slLossPct/100) - fee;
+      }
+
+      capital += pnl;
+      equity.push(capital);
+      trades += 1;
+    }
+
+    const winRate = trades ? (wins/trades*100) : 0;
+    const totalRet = pct(capital, capital0);
+    const maxDD = calcMaxDrawdown(equity);
+    return { equity, capital, trades, winRate, totalRet, maxDD };
+  }
+
+  // Sayfa yüklenince verileri getir, PnL grafiğini çiz, filtreleri bağla
   async function load(){
     const r = await fetch('/api/signals');
     const data = await r.json();
-    // KPI
-    document.getElementById('kpiSignals').textContent = data.length;
-    document.getElementById('kpiHit').textContent = (50 + Math.random()*20).toFixed(0) + '%';
-    document.getElementById('kpiWin').textContent = ((Math.random()-0.4)*10).toFixed(2) + '%';
-    document.getElementById('lastUpdated').textContent = 'Güncellendi: ' + new Date().toLocaleString();
 
-    // Chart
+    // KPI (hero)
+    const kpiSignals = document.getElementById('kpiSignals');
+    const kpiHit = document.getElementById('kpiHit');
+    const kpiWin = document.getElementById('kpiWin');
+    if (kpiSignals) kpiSignals.textContent = data.length;
+    if (kpiHit)     kpiHit.textContent = (50 + Math.random()*20).toFixed(0) + '%';
+    if (kpiWin)     kpiWin.textContent = ((Math.random()-0.4)*10).toFixed(2) + '%';
+
+    const lu = document.getElementById('lastUpdated');
+    if (lu) lu.textContent = 'Güncellendi: ' + new Date().toLocaleString();
+
+    // PnL simülasyon grafiği (hero sağ)
     const labels = [];
     const series = [];
     let equity = 0;
@@ -41,15 +113,15 @@
       });
     }
 
-    // Filtreleme davranışları
+    // Filtreler
     const search = document.getElementById('search');
     const symbolFilter = document.getElementById('symbolFilter');
     const segs = document.querySelectorAll('.segmented .seg');
     const rows = Array.from(document.querySelectorAll('#tbody tr'));
 
     function applyFilters(){
-      const q = (search.value || '').trim().toLowerCase();
-      const sym = symbolFilter.value;
+      const q = (search?.value || '').trim().toLowerCase();
+      const sym = symbolFilter?.value || '';
       const sideBtn = document.querySelector('.segmented .seg.active');
       const side = sideBtn ? sideBtn.dataset.side : '';
 
@@ -76,7 +148,49 @@
     document.getElementById('refresh')?.addEventListener('click', ()=>location.reload());
   }
 
-  // Chart.js hazırsa yükle
-  if (document.readyState !== 'loading') load();
-  else document.addEventListener('DOMContentLoaded', load);
+  // Simülasyon UI bağlama
+  async function attachSimulation(){
+    const btn = document.getElementById('runSim');
+    if (!btn) return;
+    const r = await fetch('/api/signals');
+    const signals = await r.json();
+
+    btn.addEventListener('click', ()=>{
+      const capital0 = parseFloat(document.getElementById('simCapital').value || '10000');
+      const feePct   = parseFloat(document.getElementById('simFeePct').value || '0.05');
+      const tpPct    = parseFloat(document.getElementById('simTP').value || '1.5');
+      const slPct    = parseFloat(document.getElementById('simSL').value || '1.0');
+      const useSignalLevels = document.getElementById('useSignalLevels').checked;
+      const useConfidence   = document.getElementById('useConfidence').checked;
+
+      const res = runSimulationFromSignals(signals, { capital0, feePct, tpPct, slPct, useSignalLevels, useConfidence });
+
+      // KPI’lar
+      document.getElementById('simTrades').textContent   = res.trades;
+      document.getElementById('simWinRate').textContent  = res.winRate.toFixed(1) + '%';
+      document.getElementById('simTotalRet').textContent = res.totalRet.toFixed(2) + '%';
+      document.getElementById('simMaxDD').textContent    = res.maxDD.toFixed(2);
+
+      // Grafik
+      const sc = document.getElementById('simChart');
+      if (sc && window.Chart){
+        if (sc._chartInstance){ sc._chartInstance.destroy(); }
+        sc._chartInstance = new Chart(sc, {
+          type: 'line',
+          data: { 
+            labels: res.equity.map((_,i)=>i),
+            datasets: [{ label: 'Equity', data: res.equity }]
+          },
+          options: { responsive: true, scales: { x: { display:false } } }
+        });
+      }
+    });
+  }
+
+  // Çalıştır
+  if (document.readyState !== 'loading'){
+    load(); attachSimulation();
+  } else {
+    document.addEventListener('DOMContentLoaded', ()=>{ load(); attachSimulation(); });
+  }
 })();

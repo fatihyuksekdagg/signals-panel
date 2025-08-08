@@ -38,6 +38,42 @@
   </div>
 </section>
 
+<!-- SİMÜLASYON BLOĞU -->
+<section class="card" style="margin-top:16px">
+  <div class="table-head">
+    <h2>Simülasyon</h2>
+    <span class="muted">Sinyallerden basit PnL simülasyonu (istemci tarafı)</span>
+  </div>
+
+  <div class="controls control-row" style="margin-bottom:10px">
+    <input id="simCapital" class="input" type="number" min="100" value="10000" placeholder="Başlangıç sermayesi">
+    <input id="simFeePct" class="input" type="number" step="0.01" value="0.05" placeholder="Komisyon %">
+    <input id="simTP" class="input" type="number" step="0.1" value="1.5" placeholder="Varsayılan TP %">
+    <input id="simSL" class="input" type="number" step="0.1" value="1.0" placeholder="Varsayılan SL %">
+    <label style="display:flex;align-items:center;gap:6px">
+      <input id="useSignalLevels" type="checkbox" checked>
+      <span class="muted">Sinyal TP/SL kullan</span>
+    </label>
+    <label style="display:flex;align-items:center;gap:6px">
+      <input id="useConfidence" type="checkbox" checked>
+      <span class="muted">Kazanma ihtimali için <code>confidence</code> kullan</span>
+    </label>
+    <button id="runSim" class="btn primary">Simülasyonu Çalıştır</button>
+  </div>
+
+  <div class="kpis" style="margin-bottom:10px">
+    <div class="kpi"><span id="simTrades">—</span><label>İşlem Sayısı</label></div>
+    <div class="kpi"><span id="simWinRate">—</span><label>Kazanma Oranı</label></div>
+    <div class="kpi"><span id="simTotalRet">—</span><label>Toplam Getiri</label></div>
+    <div class="kpi"><span id="simMaxDD">—</span><label>Maks. Drawdown</label></div>
+  </div>
+
+  <div class="card">
+    <canvas id="simChart"></canvas>
+  </div>
+  <small class="muted">Not: Bu basit bir simülasyondur; eğitim ve analiz amaçlıdır.</small>
+</section>
+
 <section class="card table-card">
   <div class="table-head">
     <h2>Güncel Sinyaller</h2>
